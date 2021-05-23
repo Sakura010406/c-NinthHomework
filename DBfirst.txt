@@ -1,0 +1,845 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using System.Xml.Serialization;
+using System.IO;
+
+namespace CsEighthHomework
+{
+    
+
+    public class Order
+    {
+        public int m_Id { get; set; }
+
+        public string m_Name { get; set; }
+
+        public string m_Customer { get; set; }
+
+        public double m_Pay { get; set; }
+
+        public OrderDetails m_Od { get; set; }
+
+
+        public Order()
+        {
+
+
+        }
+        public Order(int Id, string Name, string Customer, double Pay, OrderDetails OD)
+        {
+            this.m_Id = Id;
+
+            this.m_Name = Name;
+
+            this.m_Customer = Customer;
+
+            this.m_Pay = Pay;
+
+            m_Od = null;
+
+            m_Od = new OrderDetails(OD.m_OrderTimeId, OD.m_IsFinished);
+        }
+        public Order deepClone()
+        {
+            if (this != null)
+            {
+                Order order = new Order(this.m_Id, this.m_Name, this.m_Customer, this.m_Pay, this.m_Od);
+
+                return order;
+            }
+            else
+            {
+                return null;
+            }
+
+        }
+        public override string ToString()
+        {
+            return "订单号:  " + this.m_Id + "  商品名:  " + this.m_Name + "  客户名:  " + this.m_Customer + "  订单金额:  " + this.m_Pay + "  订单时间:  " + this.m_Od;
+        }
+        //重写equals方法
+        public override bool Equals(object obj)
+        {
+            Order order = obj as Order;
+            return order != null && order.m_Name == this.m_Name && order.m_Customer == this.m_Customer && order.m_Pay == this.m_Pay && order.m_Od == this.m_Od;
+        }
+        public override int GetHashCode()
+        {
+            return this.m_Id;
+        }
+    }
+
+
+
+    //订单明细  订单时间 订单完成情况
+
+    public class OrderDetails
+    {
+
+        public DateTime m_OrderTimeId { get; set; }
+
+        public bool m_IsFinished { get; set; }
+
+
+        public OrderDetails()
+        {
+
+
+
+        }
+        public OrderDetails(DateTime orderTime, bool isFinished)
+        {
+
+            this.m_OrderTimeId = orderTime;
+
+            this.m_IsFinished = isFinished;
+        }
+        //深拷贝
+        public OrderDetails detailsDeepClone()
+        {
+            if (this != null)
+            {
+                OrderDetails orderDetails = new OrderDetails(this.m_OrderTimeId, this.m_IsFinished);
+
+                return orderDetails;
+            }
+            else
+            {
+                return null;
+            }
+
+        }
+
+        //重写tostring方法
+        public override string ToString()
+        {
+            string str = (this.m_IsFinished == true) ? "已完成" : "未完成";
+
+            return this.m_OrderTimeId.ToString() + "  完成情况:  " + str;
+        }
+
+        //重写equals方法
+        public override bool Equals(object obj)
+        {
+            OrderDetails orderDetails = obj as OrderDetails;
+
+            return orderDetails != null && orderDetails.m_OrderTimeId == this.m_OrderTimeId && orderDetails.m_IsFinished == this.m_IsFinished;
+        }
+        public override int GetHashCode()
+        {
+            return Convert.ToInt32(this.m_OrderTimeId.Year);
+        }
+
+    }
+
+    public class MyException : ApplicationException
+    {
+        public MyException(string message) : base(message)
+        {
+        }
+    }
+
+
+
+    //订单服务
+    [Serializable]
+    public class OrderService
+    {
+        public List<Order> m_List = new List<Order>();
+
+        public static int m_SumOrder = 0;
+
+        public static bool m_DataIsEmpty = true;
+
+        public OrderService()
+        {
+            using (var context = new orderinfoEntities())
+            {
+                m_SumOrder = context.orderdetails.Count();
+            }
+
+            this.m_List.Clear();
+
+        }
+        public void Export()
+        {
+
+            Order[] orderArray = this.m_List.ToArray();
+
+            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Order[]));
+
+            using (FileStream fs = new FileStream("s.xml", FileMode.Create))
+            {
+                xmlSerializer.Serialize(fs, orderArray);
+            }
+
+            Console.WriteLine("序列化成功!");
+
+            Console.WriteLine(File.ReadAllText("s.xml"));
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+        public void Import()
+        {
+            XmlSerializer xmlSerializer = new XmlSerializer(typeof(Order[]));
+
+            using (FileStream fs = new FileStream("s.xml", FileMode.Open))
+            {
+                Order[] orderArray = (Order[])xmlSerializer.Deserialize(fs);
+
+                Array.ForEach(orderArray, p => Console.WriteLine(p));
+            }
+            Console.WriteLine("反序列化成功!");
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+        public void showManu()
+        {
+
+            Console.WriteLine("*******************");
+
+            Console.WriteLine("****0、添加订单****");
+
+            Console.WriteLine("****1、删除订单****");
+
+            Console.WriteLine("****2、修改订单****");
+
+            Console.WriteLine("****3、查询订单****");
+
+            Console.WriteLine("****4、显示订单****");
+
+            Console.WriteLine("****5、序列化订单****");
+
+            Console.WriteLine("****6、反序列化订单****");
+
+            Console.WriteLine("****7、退出系统****");
+
+            Console.WriteLine("*******************");
+
+        }
+        //订单排序
+        public void Sort(List<Order> list)
+        {
+            Console.WriteLine("您想要按照什么属性进行排序? 0、订单号 1、订单金额 2、订单时间");
+
+            int select = 0;
+
+            select = Convert.ToInt32(Console.ReadLine());
+
+            if (select == 0)
+            {
+                list.Sort((o1, o2) => o1.m_Id - o2.m_Id);
+
+            }
+            else if (select == 1)
+            {
+                list.Sort((o1, o2) => (int)(o1.m_Pay - o2.m_Pay));
+
+            }
+            else
+            {
+                list.Sort((o1, o2) => DateTime.Compare(o1.m_Od.m_OrderTimeId, o2.m_Od.m_OrderTimeId));
+            }
+
+        }
+        //添加订单
+        public void addOrder()
+        {
+            Console.WriteLine("请输入添加订单的单数:");
+
+            int orderNum;
+
+            orderNum = Convert.ToInt32(Console.ReadLine());
+
+            for (int i = 0; i < orderNum; i++)
+            {
+                m_DataIsEmpty = false;
+
+                m_SumOrder++;
+
+                Console.WriteLine($"正在添加的第{i + 1}单(订单号为{m_SumOrder}):");
+
+                int id;
+
+                string name;
+
+                string customer;
+
+                double pay;
+
+                id = m_SumOrder;
+
+                Console.WriteLine("请输入商品名称:");
+
+                name = Console.ReadLine();
+
+                Console.WriteLine("请输入客户姓名:");
+
+                customer = Console.ReadLine();
+
+                Console.WriteLine("请输入订单金额:");
+
+                try
+                {
+                    pay = Convert.ToDouble(Console.ReadLine());
+                }
+                catch (Exception e)
+                {
+                    Console.WriteLine(e.Message);
+
+                    return;
+                }
+
+                //订单明细
+                DateTime DT = new DateTime();
+
+                DT = DateTime.Now;
+
+                OrderDetails OD = new OrderDetails(DT, false);
+
+                Order order = new Order(id, name, customer, pay, OD);
+             
+                using (var context = new orderinfoEntities())
+                {
+                    var od = new orderdetails { id = id, name = name, customer = customer, pay = pay, time = OD.m_OrderTimeId.ToString(), success = OD.m_IsFinished };
+
+                    context.orderdetails.Add(od);
+
+                    context.SaveChanges();
+
+                    Console.WriteLine("数据库添加数据成功!");
+                }
+
+                this.m_List.Add(order);
+            }
+
+            Console.WriteLine("订单添加成功!");
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+
+        //删除订单
+        public void deleteOrder()
+        {
+            if (!m_DataIsEmpty)
+            {
+                Console.WriteLine("请输入您要删除的订单编号:");
+
+                int orderId;
+
+                orderId = Convert.ToInt32(Console.ReadLine());
+
+                //数据库删除数据
+
+                using (var context = new orderinfoEntities())
+                {
+                    var od = context.orderdetails.FirstOrDefault(o => o.id == orderId);
+
+                    if (od != null)
+                    {
+                        context.orderdetails.Remove(od);
+
+                        context.SaveChanges();
+
+                        Console.WriteLine("数据库删除数据成功!");
+                    }
+                
+                   
+                }
+
+                    for (int i = 0; i < this.m_List.Count; i++)
+                {
+                    if (this.m_List[i].m_Id == orderId)
+                    {
+                        this.m_List.Remove(this.m_List[i]);
+
+
+                    }
+                }
+            }
+            else
+            {
+                Console.WriteLine("订单信息为空!");
+            }
+            Console.WriteLine("订单删除成功");
+
+            m_SumOrder--;
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+        //修改订单
+        public void modifyOrder()
+        {
+            if (!m_DataIsEmpty)
+            {
+                Console.WriteLine("请输入您要修改的订单编号:");
+
+                int orderId;
+
+                orderId = Convert.ToInt32(Console.ReadLine());
+
+                for (int i = 0; i < this.m_List.Count; i++)
+                {
+                    if (this.m_List[i].m_Id == orderId)
+                    {
+                       
+                        Console.WriteLine($"订单号为{this.m_List[i].m_Id}的订单信息如下:");
+
+                        Console.WriteLine(this.m_List[i]);
+
+                        Console.WriteLine("请输入你要修改的信息:1、商品名称  2、客户姓名  3、订单金额  4、订单状态（例如您要修改商品名称和客户姓名，则输入12）");
+
+                        int select = 0;
+
+                        select = Convert.ToInt32(Console.ReadLine());
+
+                        //数据库修改数据
+                        using (var context = new orderinfoEntities())
+                        {
+                            var od = new orderdetails() { id = orderId };
+
+                            context.Entry(od).State = System.Data.Entity.EntityState.Modified;
+
+                            if (select == 1)
+                            {
+                                Console.WriteLine("请输入修改后的商品名称:");
+
+                                od.name = Console.ReadLine();
+
+                            }
+                            if (select == 2)
+                            {
+                                Console.WriteLine("请输入修改后的客户姓名:");
+
+                                od.customer = Console.ReadLine();
+                            }
+                            if (select == 3)
+                            {
+                                Console.WriteLine("请输入修改后的订单金额:");
+
+                                od.pay= Convert.ToDouble(Console.ReadLine());
+                            }
+                            if (select == 4)
+                            {
+                                Console.WriteLine("请输入修改后的订单状态: 0、已完成  1、未完成");
+
+                                int choose = 0;
+
+                                choose = Convert.ToInt32(Console.ReadLine());
+
+                                bool status = (choose == 0) ? true : false;
+
+                                od.success = status;
+
+                            }
+                            Console.WriteLine("数据库修改数据成功!");
+                        }
+
+
+                        if (select == 1)
+                        {
+                            Console.WriteLine("请输入修改后的商品名称:");
+
+                            this.m_List[i].m_Name = Console.ReadLine();
+
+                        }
+                        if (select == 2)
+                        {
+                            Console.WriteLine("请输入修改后的客户姓名:");
+
+                            this.m_List[i].m_Customer = Console.ReadLine();
+                        }
+                        if (select == 3)
+                        {
+                            Console.WriteLine("请输入修改后的订单金额:");
+
+                            this.m_List[i].m_Pay = Convert.ToDouble(Console.ReadLine());
+                        }
+                        if (select == 4)
+                        {
+                            Console.WriteLine("请输入修改后的订单状态: 0、已完成  1、未完成");
+
+                            int choose = 0;
+
+                            choose = Convert.ToInt32(Console.ReadLine());
+
+                            bool status = (choose == 0) ? true : false;
+
+                            this.m_List[i].m_Od.m_IsFinished = status;
+
+                        }
+                        Console.WriteLine("订单修改成功！");
+
+                    }
+                }
+            }
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+        //查询订单
+        public void inquireOrder()
+        {
+            if (!m_DataIsEmpty)
+            {
+                Console.WriteLine("请选择查询方式: 0、按照订单号 1、按照商品名称 2、按照客户名 3、按照订单金额 4、按照订单完成状态");
+
+                int select = 0;
+
+                select = Convert.ToInt32(Console.ReadLine());
+
+
+                if (select == 0)
+                {
+                    Console.WriteLine("请输入您要查询的订单号:");
+
+                    int orderId = 0;
+
+                    orderId = Convert.ToInt32(Console.ReadLine());
+
+                    var order = from o in this.m_List
+
+                                where o.m_Id == orderId
+
+                                select o;
+
+                    List<Order> list = order.ToList();
+
+
+                    //数据库查询  按照id
+                    using (var context = new orderinfoEntities())
+                    {
+                        var od = context.orderdetails.SingleOrDefault(o => o.id == orderId);
+
+                        if (od != null)
+                        {
+                            Console.WriteLine(od.id+od.name+od.customer+od.pay+od.time+od.success);
+                        }
+                    }
+
+                    if (list != null)
+                    {
+                        foreach (Order o in list)
+                        {
+                            Console.WriteLine(o);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("您要查找的订单不存在!");
+                    }
+                }
+                else if (select == 1)
+                {
+                    Console.WriteLine("请输入您要查询的商品名称:");
+
+                    string orderName = " ";
+
+                    orderName = Console.ReadLine();
+
+                    var order = from o in this.m_List
+
+                                where o.m_Name == orderName
+
+                                select o;
+
+                    List<Order> list = order.ToList();
+
+                    //数据库查询  按照name
+                    using (var context = new orderinfoEntities())
+                    {
+                        var od = context.orderdetails.SingleOrDefault(o => o.name == orderName);
+
+                        if (od != null)
+                        {
+                            Console.WriteLine(od.id + od.name + od.customer + od.pay + od.time + od.success);
+                        }
+                    }
+
+
+                    if (list != null)
+                    {
+                        foreach (Order o in list)
+                        {
+                            Console.WriteLine(o);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("您要查找的订单不存在!");
+                    }
+                }
+                else if (select == 2)
+                {
+                    Console.WriteLine("请输入您要查询的客户名称:");
+
+                    string orderCustomer = " ";
+
+                    orderCustomer = Console.ReadLine();
+
+                    var order = from o in this.m_List
+
+                                where o.m_Customer == orderCustomer
+
+                                select o;
+
+                    List<Order> list = order.ToList();
+
+                    //数据库查询  按照customer
+                    using (var context = new orderinfoEntities())
+                    {
+                        var od = context.orderdetails.SingleOrDefault(o => o.customer == orderCustomer);
+
+                        if (od != null)
+                        {
+                            Console.WriteLine(od.id + od.name + od.customer + od.pay + od.time + od.success);
+                        }
+                    }
+
+                    if (list != null)
+                    {
+                        foreach (Order o in list)
+                        {
+                            Console.WriteLine(o);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("您要查找的订单不存在!");
+                    }
+                }
+                else if (select == 3)
+                {
+                    double orderPayMax = 0;
+
+                    double orderPayMin = 0;
+
+                    Console.WriteLine("请输入最小金额:");
+
+                    orderPayMin = Convert.ToDouble(Console.ReadLine());
+
+                    Console.WriteLine("请输入最大金额:");
+
+                    orderPayMax = Convert.ToDouble(Console.ReadLine());
+
+                    if (orderPayMax < orderPayMin)
+                    {
+                        throw (new MyException($"异常:{orderPayMax < orderPayMin}"));
+                    }
+
+                    var order = from o in this.m_List
+
+                                where o.m_Pay < orderPayMax && orderPayMin < o.m_Pay
+
+                                select o;
+
+                    List<Order> list = order.ToList();
+
+                    //数据库查询  按照pay
+                    using (var context = new orderinfoEntities())
+                    {
+                        var od = context.orderdetails.SingleOrDefault(o => o.pay > orderPayMin && o.pay < orderPayMax);
+
+                        if (od != null)
+                        {
+                            Console.WriteLine(od.id + od.name + od.customer + od.pay + od.time + od.success);
+                        }
+                    }
+
+
+                    if (list != null)
+                    {
+                        foreach (Order o in list)
+                        {
+                            Console.WriteLine(o);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("您要查找的订单不存在!");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("0、已完成 1、未完成");
+
+                    select = Convert.ToInt32(Console.ReadLine());
+
+                    bool orderFinished = (select == 0) ? true : false;
+
+                    var order = from o in this.m_List
+
+                                where o.m_Od.m_IsFinished == orderFinished
+
+                                select o;
+
+                    List<Order> list = order.ToList();
+
+                    //数据库查询  按照success
+                    using (var context = new orderinfoEntities())
+                    {
+                        var od = context.orderdetails.SingleOrDefault(o =>o.success==orderFinished);
+
+                        if (od != null)
+                        {
+                            Console.WriteLine(od.id + od.name + od.customer + od.pay + od.time + od.success);
+                        }
+                    }
+
+                    if (list != null)
+                    {
+                        foreach (Order o in list)
+                        {
+                            Console.WriteLine(o);
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("您要查找的订单不存在!");
+                    }
+
+                    return;
+                }
+
+            }
+            else
+            {
+                Console.WriteLine("订单信息为空!");
+            }
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+        //显示订单
+        public void showOrder()
+        {
+            if (!m_DataIsEmpty)
+            {
+                this.Sort(this.m_List);
+
+                foreach (Order o in this.m_List)
+                {
+
+                    Console.WriteLine(o);
+
+                }
+            }
+            else
+            {
+                Console.WriteLine("订单信息为空!");
+            }
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+        //退出系统
+        public void exit()
+        {
+            Console.WriteLine("您确定要退出吗?  0、退出  1、取消");
+
+            int choose = 0;
+
+            choose = Convert.ToInt32(Console.ReadLine());
+
+            if (choose == 0)
+            {
+                Console.WriteLine("欢迎下次使用!");
+
+                exit();
+            }
+
+            Console.ReadKey();
+
+            Console.Clear();
+        }
+    }
+    //调用OrderService里面的方法完成各种订单操作
+    class Program
+    {
+        static void Main(string[] args)
+        {
+            OrderService OS = new OrderService();
+
+            while (true)
+            {
+
+                int choose = 0;
+
+                OS.showManu();
+
+                Console.WriteLine("请选择您要进行的操作:");
+
+                choose = Convert.ToInt32(Console.ReadLine());
+
+                switch (choose)
+                {
+                    //0、加订单
+                    case 0:
+                        OS.addOrder();
+
+                        break;
+                    //1、删除订单
+                    case 1:
+                        OS.deleteOrder();
+
+                        break;
+                    //2、修改订单
+                    case 2:
+                        OS.modifyOrder();
+
+                        break;
+                    //3、查询订单
+                    case 3:
+                        OS.inquireOrder();
+
+                        break;
+                    //4、显示订单
+                    case 4:
+                        OS.showOrder();
+
+                        break;
+                    //序列化订单
+                    case 5:
+                        OS.Export();
+
+                        break;
+                    //反序列化订单
+                    case 6:
+                        OS.Import();
+
+                        break;
+                    //退出系统
+                    case 7:
+                        OS.exit();
+
+                        break;
+
+                    default:
+                        Console.WriteLine("您输入的服务有误，请再次输入");
+
+                        Console.ReadKey();
+
+                        Console.Clear();
+
+                        break;
+
+                }
+            }
+            Console.ReadKey();
+        }
+
+    }
+}
